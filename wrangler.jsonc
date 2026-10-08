@@ -1,0 +1,20 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "site-creator-vinext-starter",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-08",
+  "r2_buckets": [
+    {
+      "binding": "BUCKET",
+      "bucket_name": "metropolitan-lab-files"
+    }
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "metropolitan-lab",
+      "database_id": "effcdb77-44ac-4c32-945b-5164cadea76c",
+      "migrations_dir": "drizzle"
+    }
+  ]
+}

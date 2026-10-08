@@ -13,7 +13,8 @@
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate",
     "test:auth": "node --import ./tests/auth-loader.mjs --test tests/auth.test.mjs",
-    "provision:lecturer": "node --experimental-strip-types scripts/provision-lecturer.mjs"
+    "provision:lecturer": "node --experimental-strip-types scripts/provision-lecturer.mjs",
+    "ship": "node scripts/ship.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
@@ -61,7 +62,7 @@
     "typescript": "5.9.3",
     "vinext": "1.0.0-beta.5",
     "vite": "8.0.13",
-    "wrangler": "4.92.0"
+    "wrangler": "^4.92.0"
   },
   "type": "module",
   "overrides": {

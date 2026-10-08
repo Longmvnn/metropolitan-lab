@@ -1,3 +1,4 @@
+import {requireInvitation,requireInvitationHash,registerInvitedLecturer} from '../../../lib/invitations';
 import {cookies} from 'next/headers';
 import {db,get} from '../../../lib/lab';
 import {assertOrigin,CHALLENGE_COOKIE,SESSION_COOKIE,createSession,setAuthCookie,limit} from '../../../lib/auth';
@@ -31,6 +32,14 @@ export async function POST(req:Request){try{
   if(!u?.password_hash||!await verifyPassword(password,u.password_hash))throw new Error('Incorrect Gmail or password. Ask your administrator if your account needs a password.');
   return await signedIn(req,u.id,'admin');
  }
+ if(b.action==='lecturerRegister'){
+  const email=normalizeEmail(b.email),name=String(b.firstName||'').trim().replace(/\s+/g,' ');
+  if(!isGmail(email))throw new Error('Enter your Gmail address.');
+  if(name.length<2||name.length>150)throw new Error('Enter your full name (2–150 characters).');
+  if(await db().prepare('SELECT id FROM users WHERE lower(email)=?').bind(email).first())throw new Error('An account already uses this Gmail. Log in with your existing account.');
+  const invitationHash=await requireInvitation(b.token,email);
+  return await sendCode(req,email,'lecturerRegister',{name,invitationHash});
+ }
  if(b.action==='register'){const details=await registrationDetails(b);return await sendCode(req,details.email,'register',details);}
  if(b.action==='studentLogin'){
   const email=normalizeEmail(b.email),password=String(b.password||'');
@@ -38,7 +47,7 @@ export async function POST(req:Request){try{
   await limit('password:'+email,10,900000);
   const u=await db().prepare("SELECT id,verified_at,password_hash FROM users WHERE lower(email)=? AND role='student'").bind(email).first();
   if(!u?.verified_at)return json({ok:true,step:'register',email,message:'Confirm your names and registration number to claim your class-list record.'});
-  if(!u.password_hash)return json({ok:true,step:'reset',email,message:'Verify your Gmail to create your first password.'});
+  if(!u.password_hash)return json({ok:true,step:'reset',email,message:'Use Forgot password to verify your Gmail and choose a password.'});
   if(!await verifyPassword(password,u.password_hash))throw new Error('Incorrect Gmail or password. Use Forgot password if you need to reset it.');
   return await signedIn(req,u.id,'student');
  }
@@ -55,18 +64,23 @@ export async function POST(req:Request){try{
  const tokenHash=await digest(token),c=await db().prepare('SELECT * FROM auth_challenges WHERE token_hash=?').bind(tokenHash).first();
  if(!c||c.used)throw new Error('Request a new code to continue.');
  if(b.action==='setPassword'){
-  if(c.purpose!=='setPassword'||c.expires<=Date.now())throw new Error('Verify your Gmail again before setting a password.');
+  if(!['setPassword','lecturerPassword'].includes(c.purpose)||c.expires<=Date.now())throw new Error('Verify your Gmail again before setting a password.');
   const password=String(b.password||'');
   if(password!==String(b.confirmPassword||''))throw new Error('Passwords do not match.');
   const passwordHash=await hashPassword(password),payload=JSON.parse(c.payload);
   const consumed=await db().prepare('UPDATE auth_challenges SET used=1 WHERE token_hash=? AND used=0 AND expires>? RETURNING token_hash').bind(tokenHash,Date.now()).first();
   if(!consumed)throw new Error('Verify your Gmail again before setting a password.');
+  if(c.purpose==='lecturerPassword'){
+   const invitationHash=await requireInvitationHash(payload.invitationHash,c.email);
+   const id=await registerInvitedLecturer(c.email,payload.name,passwordHash,invitationHash);
+   return await signedIn(req,id,'admin');
+  }
   const updated=await db().prepare("UPDATE users SET password_hash=? WHERE id=? AND lower(email)=? AND role='student' AND verified_at IS NOT NULL AND password_hash IS ? RETURNING id").bind(passwordHash,payload.userId,c.email,payload.passwordVersion).first();
   if(!updated)throw new Error('Your account changed. Verify your Gmail again.');
   await db().prepare('DELETE FROM auth_sessions WHERE user_id=?').bind(updated.id).run();
   return await signedIn(req,updated.id,'student');
  }
- if(c.purpose==='setPassword')throw new Error('Create your password to continue.');
+ if(['setPassword','lecturerPassword'].includes(c.purpose))throw new Error('Create your password to continue.');
  if(b.action==='resend')return await sendCode(req,c.email,c.purpose,JSON.parse(c.payload));
  if(b.action!=='verify')throw new Error('Unknown authentication action.');
  const attempt=await db().prepare('UPDATE auth_challenges SET attempts=attempts+1 WHERE token_hash=? AND used=0 AND attempts<5 AND expires>? RETURNING attempts').bind(tokenHash,Date.now()).first();
@@ -75,6 +89,13 @@ export async function POST(req:Request){try{
  const consumed=await db().prepare('UPDATE auth_challenges SET used=1 WHERE token_hash=? AND used=0 RETURNING token_hash').bind(tokenHash).first();
  if(!consumed)throw new Error('This code has already been used. Log in again.');
  const payload=JSON.parse(c.payload);
+ if(c.purpose==='lecturerRegister'){
+  await requireInvitationHash(payload.invitationHash,c.email);
+  if(await db().prepare('SELECT id FROM users WHERE lower(email)=?').bind(c.email).first())throw new Error('An account already uses this Gmail. Log in with your existing account.');
+  const grant=randomToken();
+  await db().prepare('INSERT INTO auth_challenges(token_hash,email,purpose,payload,code_hash,expires) VALUES(?,?,?,?,?,?)').bind(await digest(grant),c.email,'lecturerPassword',JSON.stringify({name:payload.name,invitationHash:payload.invitationHash}),'',Date.now()+600000).run();
+  return setAuthCookie(json({ok:true,step:'password',email:c.email}),req,CHALLENGE_COOKIE,grant,600);
+ }
  let userId:string;
  if(c.purpose==='register')userId=await activateStudent(payload);
  else {

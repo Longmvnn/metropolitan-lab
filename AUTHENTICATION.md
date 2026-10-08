@@ -4,7 +4,7 @@ Students claim a lecturer-imported roster using first, middle (if any), and last
 
 A ten-minute email code verifies the Gmail and activates the account. The student then creates and confirms a password. Future logins use Gmail/password without another code. Existing students without passwords and students who forgot their password use the email-verified password setup/reset flow. Password reset revokes previous sessions. Password completion and successful login set a seven-day HttpOnly, SameSite=Lax session cookie (Secure over HTTPS) and open the dashboard directly. Preview identity headers cannot log anyone in.
 
-Lecturers use Gmail/password only. Administrators add a lecturer with a password under Settings → Lecturers. To provision the first lecturer or reset an existing lecturer password directly in the database, run:
+Lecturer signup requires an administrator-issued invitation. Under Settings → Lecturers & administrators, select Invite lecturer and enter their Gmail. The existing Gmail sender emails a single-use link valid for 24 hours. The lecturer follows the link, verifies their Gmail, then creates and confirms a password. Invitation email must match the registration email. Tokens are stored as SHA-256 digests, rechecked throughout onboarding, and consumed atomically with account creation. Reinviting the same email invalidates its previous invitation. Public signup and the old direct lecturer-creation API are blocked. The existing application uses `admin` for lecturer accounts, so invited lecturers receive that role, including invitation privileges. To provision the first lecturer or reset an existing lecturer password directly in the database, run:
 
 ```sh
 npm run provision:lecturer
@@ -31,3 +31,5 @@ npm run build
 ```
 
 Auth tests use an isolated SQLite database and captured email messages. They do not send email or modify teaching records. They cover claiming linked profiles, preservation of academic data, login/registration transitions, single-use/expired/incorrect codes, competing claims, lecturer passwords, session revocation and origin checks.
+
+Migration `0005` adds lecturer invitations and normalized attendance checkpoint security fields. Pre-existing attendance sessions cannot accept new check-ins; open a new checkpoint after upgrading. See `SECURITY-AND-DEPLOYMENT.md` for setup and endpoint details.
