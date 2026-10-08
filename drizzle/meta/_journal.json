@@ -1,0 +1,41 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1790812033484,
+      "tag": "0000_worthless_joseph",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1790864420006,
+      "tag": "0001_medical_lilith",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1791424486282,
+      "tag": "0002_slimy_giant_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1791424634741,
+      "tag": "0003_easy_spencer_smythe",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1791427930500,
+      "tag": "0004_fixed_scalphunter",
+      "breakpoints": true
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+'use client';
+import {CalendarClock,ClipboardCheck,UserRoundSearch,Mail,ArrowRight,CheckCircle2,Megaphone} from 'lucide-react';
+import {Empty,CountUp,Contours} from './ui';
+
+export default function LecturerHome({ctx}:any){const {get,students,navigate,open,tick,user,courseName}=ctx;
+ const day=new Date(tick).toLocaleDateString('en-US',{timeZone:'Africa/Dar_es_Salaam',weekday:'long'});
+ const today=get('timetable').filter((t:any)=>t.day===day).sort((a:any,b:any)=>a.start.localeCompare(b.start));
+ const subs=get('submission');const latest=subs.filter((s:any)=>!subs.some((n:any)=>n.assessment===s.assessment&&(n.group||n.owner)===(s.group||s.owner)&&n.version>s.version));
+ const quizReview=get('attempt').filter((t:any)=>t.submitted&&t.needsReview&&!get('mark').some((m:any)=>m.assessment===t.assessment&&m.student===t.owner&&!m.auto));
+ const queue=[...latest.filter((s:any)=>!s.feedback).map((s:any)=>({id:s.id,title:s.title,who:s.author||'Group submission',note:`Version ${s.version}${s.late?' · late':''}`})),...quizReview.map((t:any)=>({id:t.id,title:get('assessment').find((a:any)=>a.id===t.assessment)?.title||'Quiz',who:students.find((s:any)=>s.id===t.owner)?.name||'Student',note:'Short answers to review'}))];
+ const attention=students.filter((s:any)=>s.role==='student').map((s:any)=>({...s,absent:get('attendance').filter((a:any)=>a.student===s.id&&a.status==='Absent').length})).filter((s:any)=>s.absent>=2).sort((a:any,b:any)=>b.absent-a.absent);
+ const newLetters=get('letter').filter((l:any)=>l.status==='Received');
+ const stats=[{label:'Classes today',value:today.length,icon:CalendarClock,tint:'tint-lime',go:'timetable'},{label:'To mark',value:queue.length,icon:ClipboardCheck,tint:'tint-peach',go:'assignments'},{label:'Students to follow up',value:attention.length,icon:UserRoundSearch,tint:'tint-lilac',go:'people'},{label:'New letters',value:newLetters.length,icon:Mail,tint:'tint-sky',go:'letters'}];
+ return <div className="stack reveal">
+  <section className="welcome"><Contours/><div className="grow"><span className="eyebrow">{day}</span><h1>Good to see you, {user.name.split(' ')[0]}</h1><p>Here’s what needs you today.</p></div><div className="button-row"><button className="secondary" onClick={()=>navigate('announcements')}><Megaphone size={18}/>Announce</button></div></section>
+  <div className="card-row four">{stats.map(s=>{const Icon=s.icon;return <button key={s.label} className={'card stat-card '+s.tint} onClick={()=>navigate(s.go)}><span className="card-label"><Icon size={18}/>{s.label}</span><strong className="big"><CountUp value={s.value}/></strong><ArrowRight className="card-arrow" size={18}/></button>;})}</div>
+  <div className="card-row two">
+   <section className="card"><div className="card-head"><h2>Today’s classes</h2><button className="text-button" onClick={()=>navigate('timetable')}>Timetable<ArrowRight size={16}/></button></div>{today.length?today.map((t:any)=><div className="list-row static" key={t.id}><span className="time-tile">{t.start}</span><span className="grow"><strong>{t.course} · {t.room}</strong><small>{courseName(t.course)} · until {t.end}</small></span><button className="secondary" onClick={()=>open('startSession',undefined,{timetable:t.id,minutes:10,lateAfter:5})}><CheckCircle2 size={16}/>Start check-in</button></div>):<Empty icon={CalendarClock} title="No classes today" body="Enjoy the planning time."/>}</section>
+   <section className="card"><div className="card-head"><h2>Marking queue</h2><button className="text-button" onClick={()=>navigate('assignments')}>All work<ArrowRight size={16}/></button></div>{queue.length?queue.slice(0,6).map((q:any)=><button className="list-row" key={q.id} onClick={()=>navigate('assignments')}><span className="grow"><strong>{q.title}</strong><small>{q.who} · {q.note}</small></span><ArrowRight size={16}/></button>):<Empty icon={ClipboardCheck} title="All caught up" body="New submissions waiting for feedback will appear here."/>}</section>
+  </div>
+  <div className="card-row two">
+   <section className="card"><div className="card-head"><h2>Students to follow up</h2><button className="text-button" onClick={()=>navigate('people')}>Students<ArrowRight size={16}/></button></div>{attention.length?attention.slice(0,6).map((s:any)=><div className="list-row static" key={s.id}><span className="grow"><strong>{s.name}</strong><small>{s.absent} recorded absences</small></span><button className="text-button" onClick={()=>navigate('timetable')}>Attendance</button></div>):<p className="quiet">No student has two or more recorded absences.</p>}</section>
+   <section className="card"><div className="card-head"><h2>New letters</h2><button className="text-button" onClick={()=>navigate('letters')}>Inbox<ArrowRight size={16}/></button></div>{newLetters.length?newLetters.slice(0,5).map((l:any)=><button className="list-row" key={l.id} onClick={()=>navigate('letters')}><span className="icon-tile"><Mail size={18}/></span><span className="grow"><strong>{l.subject}</strong><small>{l.author} · {l.type}</small></span></button>):<p className="quiet">No unread letters.</p>}</section>
+  </div>
+ </div>;}

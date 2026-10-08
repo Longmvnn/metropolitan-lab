@@ -1,0 +1,31 @@
+'use client';
+import {useState} from 'react';
+export default function AuthForm({portal='student',setPortal,error=''}:any){
+ const [step,setStep]=useState<'login'|'register'|'verify'|'reset'|'password'>('login');
+ const [form,setForm]=useState({firstName:'',middleName:'',lastName:'',registration:'',email:'',password:'',confirmPassword:'',code:''});
+ const [busy,setBusy]=useState(false),[message,setMessage]=useState(''),[failure,setFailure]=useState('');
+ const set=(key:string,value:string)=>setForm(f=>({...f,[key]:value}));
+ async function call(action:string){setBusy(true);setFailure('');setMessage('');try{
+  const r=await fetch('/api/auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,...form})});
+  const d:any=await r.json();if(!r.ok)throw new Error(d.error||'Unable to sign in.');
+  if(d.redirect){window.location.assign(d.redirect);return;}
+  if(d.step){setStep(d.step);setForm(f=>({...f,password:'',confirmPassword:''}));}if(d.message)setMessage(d.message);if(d.step==='verify'){set('code','');setMessage('A verification code was sent to '+d.email+'.');}
+ }catch(e:any){setFailure(e.message);}finally{setBusy(false);}}
+ const switchPortal=(value:string)=>{setPortal(value);setStep('login');setFailure('');setMessage('');setForm(f=>({...f,password:'',confirmPassword:'',code:''}));};
+ return <div className="signin"><div className="signin-brand"><img src="/branding/archplaza-logo-lime.png" alt="ArchPlaza" className="login-logo"/></div><div className="signin-grid"><div className="signin-copy"><span className="eyebrow">Ardhi University · Urban & Regional Planning</span><h1>Your courses,<br/>deadlines and marks<br/><span className="hl">in one place.</span></h1><p>Timetables, assignments, attendance and feedback for UP 406 and UP 417.</p></div><section className="login-card">
+ <div className="segmented" role="tablist" aria-label="Account type">{['student','lecturer'].map(p=><button disabled={busy} key={p} type="button" role="tab" aria-selected={portal===p} className={portal===p?'selected':''} onClick={()=>switchPortal(p)}>{p==='student'?'Student':'Lecturer'}</button>)}</div>
+ <h2>{portal==='lecturer'?'Lecturer log in':step==='register'?'Create your student account':step==='verify'?'Verify your Gmail':step==='password'?'Create your password':step==='reset'?'Set or reset your password':'Student log in'}</h2>
+ <p>{portal==='lecturer'?'Use the Gmail and password provided by your administrator.':step==='register'?'Enter your names exactly as listed on the class list. Your existing courses and records will be kept.':step==='verify'?`Enter the six-digit code sent to ${form.email}. It expires in 10 minutes.`:step==='password'?'Choose a password of 12–128 characters for future logins.':step==='reset'?'We’ll send a code to your verified Gmail before you choose a password.':'Log in with your Gmail and password.'}</p>
+ <form className="stack" onSubmit={e=>{e.preventDefault();call(portal==='lecturer'?'lecturerLogin':step==='register'?'register':step==='verify'?'verify':step==='password'?'setPassword':step==='reset'?'studentCode':'studentLogin');}}>
+ {step==='register'&&portal==='student'&&<><div className="form-grid three-names"><label>First name<input required autoComplete="given-name" value={form.firstName} onChange={e=>set('firstName',e.target.value)}/></label><label>Middle name (if any)<input autoComplete="additional-name" value={form.middleName} onChange={e=>set('middleName',e.target.value)}/></label><label>Last name<input required autoComplete="family-name" value={form.lastName} onChange={e=>set('lastName',e.target.value)}/></label></div><label>Registration number<input required value={form.registration} onChange={e=>set('registration',e.target.value)} autoCapitalize="characters"/></label></>}
+ {step!=='verify'&&step!=='password'&&<label>Gmail address<input required type="email" autoComplete="username" value={form.email} onChange={e=>set('email',e.target.value)} placeholder="you@gmail.com"/></label>}
+ {(portal==='lecturer'||step==='login')&&<label>Password<input required type="password" autoComplete="current-password" value={form.password} onChange={e=>set('password',e.target.value)}/></label>}
+ {step==='verify'&&<label>Verification code<input required className="code-input" inputMode="numeric" autoComplete="one-time-code" maxLength={6} pattern="[0-9]{6}" value={form.code} onChange={e=>set('code',e.target.value.replace(/\D/g,''))}/></label>}
+ {step==='password'&&<><label>New password<input required type="password" autoComplete="new-password" minLength={12} maxLength={128} value={form.password} onChange={e=>set('password',e.target.value)}/></label><label>Confirm password<input required type="password" autoComplete="new-password" minLength={12} maxLength={128} value={form.confirmPassword} onChange={e=>set('confirmPassword',e.target.value)}/></label></>}
+ <button className="primary full" disabled={busy}>{busy?'Please wait…':portal==='lecturer'||step==='login'?'Log in':step==='verify'?'Verify Gmail':step==='password'?'Save password and log in':'Send verification code'}</button>
+ </form>
+ {portal==='student'&&<div className="stack below">{step==='login'&&<button disabled={busy} className="text-button center" onClick={()=>{setStep('reset');setFailure('');setMessage('');}}>Forgot password / set my first password</button>}{step==='verify'&&<button disabled={busy} className="text-button center" onClick={()=>call('resend')}>Send a new code</button>}<button disabled={busy} className="text-button center" onClick={()=>{setStep(step==='login'?'register':'login');setFailure('');setMessage('');}}>{step==='login'?'First time here? Create account':'Back to log in'}</button></div>}
+ {message&&<p role="status">{message}</p>}{(failure||error)&&<div className="error" role="alert">{failure||error}</div>}
+ <small>Official academic records remain with Ardhi University.</small>
+ </section></div></div>;
+}

@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX `users_email_case_unique` ON `users` (lower("email"));
